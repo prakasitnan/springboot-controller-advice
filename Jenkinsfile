@@ -11,18 +11,14 @@ pipeline {
         DOCKER_HUB_USER = 'prakasitnan'
         DOCKER_IMAGE    = "${DOCKER_HUB_USER}/springboot-controller-advice"
 
-        // 2. Credentials (IDs must match Jenkins settings)
+        // 2. Credentials
         DOCKER_CREDS = credentials('docker-hub-creds')  // Provides DOCKER_CREDS_USR / DOCKER_CREDS_PSW
-        GIT_CREDS    = credentials('git-repo-creds')    // SSH key for GitHub checkout
 
-        // 3. App version — set dynamically in 'Update Version' stage
+        // 3. App version (Initialized empty, updated in script block)
         APP_VERSION = ""
     }
 
-    tools {
-        // Requires 'Maven' tool configured in Jenkins → Global Tool Configuration
-        maven 'Maven'
-    }
+    // REMOVED: tools { maven 'Maven' } because we are using ./mvnw
 
     stages {
 
@@ -34,7 +30,8 @@ pipeline {
                     $class           : 'GitSCM',
                     branches         : [[name: '*/main']],
                     userRemoteConfigs: [[
-                        url          : 'git@github.com:prakasitnan/springboot-controller-advice.git',
+                        // CHANGED: Using HTTPS instead of SSH to avoid Host Key Verification errors
+                        url          : 'https://github.com/prakasitnan/springboot-controller-advice.git',
                         credentialsId: 'git-repo-creds'
                     ]]
                 ])
@@ -46,19 +43,18 @@ pipeline {
         stage('Update Version') {
             steps {
                 script {
-                    // SemVer: MAJOR.MINOR.BUILD_NUMBER  (e.g. 1.2.42)
-                    // MAJOR and MINOR come from pipeline input parameters
-                    APP_VERSION = "${params.MAJOR}.${params.MINOR}.${BUILD_NUMBER}"
+                    // CHANGED: Must use env. prefix to globally update an environment variable
+                    env.APP_VERSION = "${params.MAJOR}.${params.MINOR}.${BUILD_NUMBER}"
                 }
-                echo "Bumping pom.xml version to ${APP_VERSION}..."
+                echo "Bumping pom.xml version to ${env.APP_VERSION}..."
                 sh """
                     chmod +x mvnw
                     ./mvnw versions:set \
-                        -DnewVersion=${APP_VERSION} \
+                        -DnewVersion=${env.APP_VERSION} \
                         -DgenerateBackupPoms=false \
                         -B
                 """
-                echo "pom.xml version updated to ${APP_VERSION}"
+                echo "pom.xml version updated to ${env.APP_VERSION}"
             }
         }
 
@@ -68,10 +64,10 @@ pipeline {
                 echo "Building Spring Boot JAR..."
                 sh './mvnw clean package -DskipTests -B'
 
-                echo "Building Docker image: ${DOCKER_IMAGE}:${APP_VERSION}"
+                echo "Building Docker image: ${DOCKER_IMAGE}:${env.APP_VERSION}"
                 sh """
                     docker build \
-                        -t ${DOCKER_IMAGE}:${APP_VERSION} \
+                        -t ${DOCKER_IMAGE}:${env.APP_VERSION} \
                         -t ${DOCKER_IMAGE}:latest \
                         .
                 """
@@ -84,10 +80,10 @@ pipeline {
                 echo "Pushing Docker image to DockerHub..."
                 sh """
                     echo "${DOCKER_CREDS_PSW}" | docker login -u "${DOCKER_CREDS_USR}" --password-stdin
-                    docker push ${DOCKER_IMAGE}:${APP_VERSION}
+                    docker push ${DOCKER_IMAGE}:${env.APP_VERSION}
                     docker push ${DOCKER_IMAGE}:latest
                 """
-                echo "Image ${DOCKER_IMAGE}:${APP_VERSION} pushed successfully."
+                echo "Image ${DOCKER_IMAGE}:${env.APP_VERSION} pushed successfully."
             }
         }
     }
@@ -97,25 +93,16 @@ pipeline {
         always {
             echo "Cleaning up local Docker images to free disk space..."
             sh """
-                docker rmi ${DOCKER_IMAGE}:${APP_VERSION} || true
+                docker rmi ${DOCKER_IMAGE}:${env.APP_VERSION} || true
                 docker rmi ${DOCKER_IMAGE}:latest         || true
                 docker logout                              || true
             """
         }
         success {
-            echo "Pipeline succeeded! Image ${DOCKER_IMAGE}:${APP_VERSION} is live on DockerHub."
+            echo "Pipeline succeeded! Image ${DOCKER_IMAGE}:${env.APP_VERSION} is live on DockerHub."
         }
         failure {
             echo "Pipeline FAILED. Check the logs above for details."
         }
     }
 }
-
-
-
-
-
-
-
-
-
