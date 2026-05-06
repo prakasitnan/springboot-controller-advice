@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Access Denied</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        .error-container { border: 1px solid #ccc; padding: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="error-container">
+    <h1>403 Forbidden</h1>
+    <p>You do not have permission to access this page.</p>
+    <hr>
+    <a th:href="@{/home}">Go to Home</a>
+    <div th:replace="~{fragments/logout :: logoutButton}"></div>
+</div>
+
+</body>
+</html>
+

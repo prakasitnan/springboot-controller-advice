@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Page Not Found</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        .error-container { border: 1px solid #ccc; padding: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="error-container">
+    <h1 th:text="${status} + ' ' + ${error}">404 Not Found</h1>
+    <p th:text="${message}">The requested page does not exist.</p>
+    <hr>
+    <p><strong>Attempted Path:</strong> <span th:text="${path}">/unknown-url</span></p>
+
+    <a href="#" onclick="history.back()">Go back to Home</a>
+    <div th:replace="~{fragments/logout :: logoutButton}"></div>
+</div>
+
+</body>
+</html>
